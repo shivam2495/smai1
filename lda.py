@@ -9,11 +9,11 @@ import re
 
 # ##################################################################################### Generating vocab
 
-comments = pd.read_csv("YoutubeCommentsSpam.csv")
+corpus = pd.read_csv("abc_small.csv")
 tokenizer = RegexpTokenizer(r'\w+')  # remove punctuation
 stop_words = stopwords.words('english')
-text_data = [line for line in comments["commentText"] if line != '']
-for line in range(len(comments)):
+text_data = [line for line in corpus["text"] if line != '']
+for line in tqdm(range(len(corpus))):
     line_token = tokenizer.tokenize(text_data[line].lower())
     clean_token = [re.sub(r'[^a-zA-Z]', '', word) for word in line_token]  # only alphabets
     stop_token = [word for word in clean_token if word not in stop_words if word != '']  # remove stop words
@@ -22,35 +22,35 @@ for line in range(len(comments)):
 vocab_total = set([words for sublist in text_data for words in sublist])
 # print(vocab_total)
 text_ID = []
-for line in range(len(text_data)):
-    comment_vector = [list(vocab_total).index(words) for words in text_data[line]]
-    text_ID.append(comment_vector)
+for line in tqdm(range(len(text_data))):
+    text_to_num_line = [list(vocab_total).index(words) for words in text_data[line]]
+    text_ID.append(text_to_num_line)
 # print(text_ID)
 
 # ####################################################################################### Random init and other vectors
 
-K = 2  # no of topics
-V = len(vocab_total)
-D = len(text_ID)
+K = 20  # no of topics
+V = len(vocab_total)  # no of words in vocabulary
+D = len(text_ID)  # no of documents
 word_topic_count = np.zeros((K, V))
-doc_word_topic_assignd = [np.zeros(len(sublist)) for sublist in text_ID]
+doc_word_topic_assignd = [np.zeros(len(sublist)) for sublist in text_ID]  # dimension D * words in that doc
 doc_topic_count = np.zeros((D, K))
-for doc in range(D):
+for doc in tqdm(range(D)):
     for word in range(len(text_ID[doc])):
         doc_word_topic_assignd[doc][word] = np.random.choice(K, 1)
         word_topic = int(doc_word_topic_assignd[doc][word])
         word_doc_ID = text_ID[doc][word]
         word_topic_count[word_topic][word_doc_ID] += 1
-for doc in range(D):
+for doc in tqdm(range(D)):
     for topic in range(K):
         topic_doc_vector = doc_word_topic_assignd[doc]
         doc_topic_count[doc][topic] = sum(topic_doc_vector == topic)
 
 # ######################################################################################
 
-alpha = 0.2
-beta = 0.001
-corpus_itter = 20
+alpha = 0.1
+beta = 0.01
+corpus_itter = 50
 for itter in tqdm(range(corpus_itter)):
     for doc in range(D):
         for word in range(len(text_ID[doc])):
@@ -74,15 +74,19 @@ for itter in tqdm(range(corpus_itter)):
             word_topic_count[init_topic_assign][word_id] += 1
 theta = (doc_topic_count+alpha)
 theta_row_sum = np.sum(theta, axis=1)
-theta = theta/theta_row_sum.reshape((D, 1))  # probab of a doc falling in a given topic after running lda
+theta = theta/theta_row_sum.reshape((D, 1))  # probab of a doc falling in a given topic after running lda K*D
 phi = (word_topic_count + beta)
 phi_row_sum = np.sum(phi, axis=1)
-phi = phi/phi_row_sum.reshape((K, 1))  # probab of a word falling in a given topic after running lda
+phi = phi/phi_row_sum.reshape((K, 1))  # probab of a word falling in a given topic after running lda K*V
 list_dict_topics = []
-for topic in range(K):
+for topic in tqdm(range(K)):
     mydict = {}
     for word in range(V):
         mydict[list(vocab_total)[word]] = phi[topic][word]
     list_dict_topics.append(mydict)
-# print(sorted([(value, key) for (key, value) in list_dict_topics[0].items()])[::-1][10:20])
-# print(sorted([(value, key) for (key, value) in list_dict_topics[1].items()])[::-1][10:20])
+doc_topic_final = []
+for i in range(K):
+    x = sorted([(value, key) for (key, value) in list_dict_topics[i].items()])[::-1][20:30]
+    for j in x:
+        print(j)
+    print("")
