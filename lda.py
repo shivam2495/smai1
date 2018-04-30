@@ -9,7 +9,7 @@ import re
 
 # ##################################################################################### Generating vocab
 
-corpus = pd.read_csv("abc_small.csv")
+corpus = pd.read_csv("news_description.csv")
 tokenizer = RegexpTokenizer(r'\w+')  # remove punctuation
 stop_words = stopwords.words('english')
 text_data = [line for line in corpus["text"] if line != '']
@@ -29,7 +29,7 @@ for line in tqdm(range(len(text_data))):
 
 # ####################################################################################### Random init and other vectors
 
-K = 20  # no of topics
+K = 7  # no of topics
 V = len(vocab_total)  # no of words in vocabulary
 D = len(text_ID)  # no of documents
 word_topic_count = np.zeros((K, V))
@@ -50,7 +50,7 @@ for doc in tqdm(range(D)):
 
 alpha = 0.1
 beta = 0.01
-corpus_itter = 50
+corpus_itter = 30
 for itter in tqdm(range(corpus_itter)):
     for doc in range(D):
         for word in range(len(text_ID[doc])):
@@ -58,7 +58,9 @@ for itter in tqdm(range(corpus_itter)):
             word_id = text_ID[doc][word]
             doc_topic_count[doc][init_topic_assign] -= 1
             word_topic_count[init_topic_assign][word_id] -= 1
+
             # ############### Gibb's sampling begin
+
             denom1 = sum(doc_topic_count[doc]) + K * alpha
             denom2 = np.sum(word_topic_count, axis=1) + V * beta
             numerator1 = [doc_topic_count[doc][col] for col in range(K)]
@@ -67,11 +69,14 @@ for itter in tqdm(range(corpus_itter)):
             numerator2 = np.array(numerator2) + beta
             prob_topics = (numerator1 / denom1) * (numerator2 / denom2)
             prob_topics = prob_topics / sum(prob_topics)
+
             # ############### Gibb's sampling end
+
             update_topic_assign = np.random.choice(K, 1, list(prob_topics))
             doc_word_topic_assignd[doc][word] = update_topic_assign
             doc_topic_count[doc][init_topic_assign] += 1
             word_topic_count[init_topic_assign][word_id] += 1
+
 theta = (doc_topic_count+alpha)
 theta_row_sum = np.sum(theta, axis=1)
 theta = theta/theta_row_sum.reshape((D, 1))  # probab of a doc falling in a given topic after running lda K*D
